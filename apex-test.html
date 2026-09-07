@@ -27,6 +27,7 @@
             doc.head.appendChild(meta);
           }
           const script = doc.createElement('script');
+          script.charset = 'utf-8';
           script.src = 'apex-v2-adapter.js';
           script.defer = true;
           doc.head.appendChild(script);
