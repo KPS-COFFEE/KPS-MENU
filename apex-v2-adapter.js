@@ -79,15 +79,25 @@
   };
 
   const cloneForNewItem = (item, allNodes) => {
-    const section = findSectionForCategory(item.category);
-    const host = section?.querySelector('.grid,.products,.menu-grid,.items') || section;
-    const source = allNodes.find((node) => {
-      const parentSection = node.closest('section,.section,.category');
-      return !section || parentSection === section;
-    }) || allNodes[0];
+    let section = findSectionForCategory(item.category);
+    if (!section) {
+      section = document.createElement('section');
+      section.className = 'section kps-apex-category';
+      section.dataset.apexCategory = String(item.category || 'المنيو');
+      const heading = document.createElement('h2');
+      heading.textContent = item.category || 'المنيو';
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      section.append(heading, grid);
+      const anchor = [...document.querySelectorAll('section')].find((node) => /فروع|تقييم|تواصل/.test(node.innerText || ''));
+      (anchor?.parentNode || document.querySelector('main') || document.body).insertBefore(section, anchor || null);
+    }
+    const host = section.querySelector('.grid,.products,.menu-grid,.items') || section;
+    const source = allNodes.find((node) => node.closest('section,.section,.category') === section) || allNodes[0];
     if (!source || !host) return null;
     const clone = source.cloneNode(true);
     clone.hidden = false;
+    clone.dataset.apexClone = '1';
     clone.removeAttribute('id');
     host.appendChild(clone);
     return clone;
@@ -117,7 +127,19 @@
     node.dataset.productName = String(item.name || '');
     const title = titleNode(node);
     if (title) title.textContent = item.name || '';
-    setImage(node, item);
+    if (node.dataset.apexClone === '1' && !item.image_url) {
+      node.querySelector('img')?.remove();
+      let placeholder = node.querySelector('[data-apex-placeholder]');
+      if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.dataset.apexPlaceholder = '1';
+        placeholder.textContent = 'KPS COFFEE';
+        placeholder.style.cssText = 'min-height:180px;display:grid;place-items:center;background:radial-gradient(circle,#2b130b,#111 68%);color:#f26532;font-weight:900';
+        node.prepend(placeholder);
+      }
+    } else {
+      setImage(node, item);
+    }
     setPrice(node, item);
     setVariants(node, item);
   };
