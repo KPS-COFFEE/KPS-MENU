@@ -93,6 +93,23 @@
     return clone;
   };
 
+  const setVariants = (node, item) => {
+    node.querySelector('[data-apex-variants]')?.remove();
+    if (!Array.isArray(item.variants) || !item.variants.length) return;
+    const wrap = document.createElement('div');
+    wrap.dataset.apexVariants = '1';
+    wrap.setAttribute('aria-label', 'الألوان المتاحة');
+    wrap.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:10px';
+    item.variants.forEach((variant) => {
+      const chip = document.createElement('span');
+      chip.title = variant.name || variant.color || variant.sku;
+      chip.setAttribute('aria-label', chip.title);
+      chip.style.cssText = 'display:inline-flex;width:22px;height:22px;border-radius:999px;border:2px solid #fff;box-shadow:0 0 0 1px #777;background:' + (variant.hex || '#777');
+      wrap.appendChild(chip);
+    });
+    (node.querySelector('.info,.product-info,.content') || node).appendChild(wrap);
+  };
+
   const paintItem = (node, item) => {
     node.hidden = false;
     node.dataset.apexManaged = '1';
@@ -102,6 +119,15 @@
     if (title) title.textContent = item.name || '';
     setImage(node, item);
     setPrice(node, item);
+    setVariants(node, item);
+  };
+
+  const hideInactiveSeasonalSections = (payload) => {
+    const hasSeasonal = payload.items.some((item) => item.product_kind === 'seasonal');
+    [...document.querySelectorAll('section,.section,.category')].forEach((section) => {
+      const heading = section.querySelector('h1,h2,h3,.section-title,.category-title');
+      if (heading && normalize(heading.textContent).includes(normalize('موسمي')) && !hasSeasonal) section.hidden = true;
+    });
   };
 
   const ensureStatus = () => {
@@ -132,11 +158,17 @@
 
       const initialNodes = productNodes();
       const byCode = new Map(initialNodes.filter((node) => readProductCode(node)).map((node) => [String(readProductCode(node)), node]));
-      const byName = new Map(initialNodes.map((node) => [normalize(readProductName(node)), node]));
+      const byName = new Map();
+      initialNodes.forEach((node) => {
+        const key = normalize(readProductName(node));
+        if (!byName.has(key)) byName.set(key, []);
+        byName.get(key).push(node);
+      });
       const used = new Set();
 
       for (const item of payload.items) {
-        let node = byCode.get(String(item.code || '')) || byName.get(normalize(item.name));
+        const named = byName.get(normalize(item.name)) || [];
+        let node = byCode.get(String(item.code || '')) || named.find((candidate) => !used.has(candidate));
         if (!node) node = cloneForNewItem(item, initialNodes);
         if (!node) continue;
         paintItem(node, item);
@@ -146,6 +178,7 @@
       initialNodes.forEach((node) => {
         if (!used.has(node)) node.hidden = true;
       });
+      hideInactiveSeasonalSections(payload);
 
       document.documentElement.dataset.apexMenuVersion = String(payload.menu_version || 0);
       setStatus(`تم تحديث المنيو من KPS APEX • النسخة ${payload.menu_version || 0}`, true);
